@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aflatoxin Monitor: Aspergillus flavus Simulation</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --neon-blue: #00BCD4;
+            --binding-orange: #FF9800;
+            --toxic-purple: #a855f7;
+            --fungus-green: #4CAF50;
+            --danger-red: #ef4444;
+            --safe-green: #22c55e;
+            --text-light: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            width: 100%;
+            padding: 15px;
+            text-align: center;
+            background: linear-gradient(90deg, #1e293b, #334155);
+            border-bottom: 1px solid #334155;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 15px;
+            max-width: 1300px;
+            width: 95%;
+            margin-top: 15px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #334155;
+            position: relative;
+        }
+
+        /* --- VISUALIZATIONS --- */
+        #micro-canvas {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 8px;
+        }
+
+        .petri-dish {
+            width: 180px;
+            height: 180px;
+            border: 5px solid #64748b;
+            border-radius: 50%;
+            margin: 10px auto;
+            position: relative;
+            background: #f1f5f9;
+            overflow: hidden;
+        }
+
+        .fungus {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, #a3e635 0%, #166534 70%, transparent 100%);
+            border-radius: 50%;
+        }
+
+        /* --- AFLATOXIN MONITOR --- */
+        .toxic-meter {
+            height: 12px;
+            width: 100%;
+            background: linear-gradient(to right, var(--safe-green), #fbbf24, var(--danger-red));
+            border-radius: 6px;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        #meter-pointer {
+            position: absolute;
+            top: -5px;
+            width: 4px;
+            height: 22px;
+            background: white;
+            border: 1px solid black;
+            transition: left 0.3s;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+
+        .badge-safe { background: var(--safe-green); color: black; }
+        .badge-risk { background: #fbbf24; color: black; }
+        .badge-toxic { background: var(--danger-red); color: white; animation: blink 1s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* --- CHART --- */
+        #analytics-canvas {
+            width: 100%;
+            height: 180px;
+            background: #0f172a;
+            border-radius: 8px;
+        }
+
+        /* --- CONTROLS --- */
+        .controls {
+            grid-column: span 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-toggle {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            background: var(--neon-blue);
+            color: white;
+            min-width: 250px;
+        }
+
+        .btn-toggle.active { background: var(--danger-red); }
+
+        .zoom-section { flex-grow: 1; margin-left: 40px; }
+        input[type=range] { width: 100%; accent-color: var(--neon-blue); }
+
+        h3 { margin: 0 0 10px 0; font-size: 1rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Carbendazim vs. Aspergillus Analytics Dashboard</h1>
+</div>
+
+<div class="main-grid">
+    <!-- View 1: Microscopic/Molecular -->
+    <div class="panel" style="grid-row: span 2;">
+        <h3>Molecular Interaction</h3>
+        <canvas id="micro-canvas"></canvas>
+        <div style="font-size: 0.75rem; color: #64748b; margin-top: 10px;">
+            Blue: β-tubulin | Orange: Carbendazim Binding Site | Neon: Microtubule
+        </div>
+    </div>
+
+    <!-- View 2: Macroscopic Petri -->
+    <div class="panel">
+        <h3>Sample Morphology</h3>
+        <div class="petri-dish">
+            <div id="fungus-body" class="fungus" style="width: 20px; height: 20px;"></div>
+        </div>
+        <p style="text-align: center; margin: 5px 0;">Fungal Growth: <span id="growth-val">0</span>%</p>
+    </div>
+
+    <!-- View 3: Aflatoxin Monitor -->
+    <div class="panel">
+        <div id="safety-badge" class="badge badge-safe">STATUS: SAFE</div>
+        <h3>Aflatoxin Production Monitor</h3>
+        <div style="font-size: 2rem; font-weight: bold; color: var(--toxic-purple);">
+            <span id="ppb-val">0.00</span> <span style="font-size: 1rem;">ppb</span>
+        </div>
+        
+        <div class="toxic-meter">
+            <div id="meter-pointer" style="left: 0%;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8;">
+            <span>0 ppb</span>
+            <span>20 ppb (LIMIT)</span>
+            <span>100+ ppb</span>
+        </div>
+        <p id="warning-text" style="font-size: 0.8rem; color: #94a3b8; margin-top: 10px;">Product within safety limits.</p>
+    </div>
+
+    <!-- View 4: Dual Axis Chart -->
+    <div class="panel" style="grid-column: span 2;">
+        <h3>Real-Time Analytics (Growth vs. Aflatoxin)</h3>
+        <canvas id="analytics-canvas"></canvas>
+        <div style="display: flex; gap: 20px; font-size: 0.8rem; margin-top: 5px;">
+            <span style="color: var(--fungus-green)">● Fungal Growth (%)</span>
+            <span style="color: var(--toxic-purple)">● Aflatoxin Level (ppb)</span>
+        </div>
+    </div>
+
+    <!-- View 5: Controls -->
+    <div class="panel controls">
+        <button id="toggleBtn" class="btn-toggle">APPLY CARBENDAZIM (0.15%)</button>
+        
+        <div class="zoom-section">
+            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8;">
+                <span>Cell View</span>
+                <span>Microtubule</span>
+                <span>Molecular</span>
+            </div>
+            <input type="range" id="zoomSlider" min="0" max="2" step="0.01" value="0">
+        </div>
+    </div>
+</div>
+
+<script>
+    const mCanvas = document.getElementById('micro-canvas');
+    const mCtx = mCanvas.getContext('2d');
+    const aCanvas = document.getElementById('analytics-canvas');
+    const aCtx = aCanvas.getContext('2d');
+    
+    // State
+    let isTreated = false;
+    let growth = 0;
+    let ppb = 0;
+    let time = 0;
+    let history = []; // For chart
+    
+    // Elements
+    const zoomSlider = document.getElementById('zoomSlider');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const ppbText = document.getElementById('ppb-val');
+    const growthText = document.getElementById('growth-val');
+    const pointer = document.getElementById('meter-pointer');
+    const safetyBadge = document.getElementById('safety-badge');
+    const warningText = document.getElementById('warning-text');
+    const fungusBody = document.getElementById('fungus-body');
+
+    function updateSimulation() {
+        time++;
+        
+        // 1. Growth Logic
+        if (!isTreated) {
+            growth += 0.2;
+            // 2. Aflatoxin Logic (Exponential increase relative to growth)
+            ppb += (growth * 0.005);
+        } else {
+            // Inhibited state (73% inhibition logic)
+            growth += 0.05; 
+            ppb += 0.01; // Secondary metabolism significantly suppressed
+        }
+
+        if (growth > 100) growth = 100;
+
+        // 3. UI Updates
+        growthText.innerText = growth.toFixed(1);
+        ppbText.innerText = ppb.toFixed(2);
+        fungusBody.style.width = (20 + (growth * 1.5)) + 'px';
+        fungusBody.style.height = (20 + (growth * 1.5)) + 'px';
+        fungusBody.style.opacity = isTreated ? 0.4 : 0.8;
+
+        // 4. Safety Logic
+        let pointerPos = Math.min((ppb / 40) * 100, 100);
+        pointer.style.left = pointerPos + '%';
+
+        if (ppb < 5) {
+            safetyBadge.innerText = "STATUS: SAFE";
+            safetyBadge.className = "badge badge-safe";
+            warningText.innerText = "Product within safety limits.";
+        } else if (ppb < 20) {
+            safetyBadge.innerText = "STATUS: RISK";
+            safetyBadge.className = "badge badge-risk";
+            warningText.innerText = "Approaching regulatory limits (20 ppb).";
+        } else {
+            safetyBadge.innerText = "STATUS: TOXIC";
+            safetyBadge.className = "badge badge-toxic";
+            warningText.innerText = "DANGER: Above 20 ppb. Unsafe for consumption!";
+        }
+
+        // 5. Chart History
+        history.push({g: growth, p: ppb});
+        if (history.length > 200) history.shift();
+        
+        drawMicro();
+        drawChart();
+        requestAnimationFrame(updateSimulation);
+    }
+
+    function drawChart() {
+        aCtx.clearRect(0, 0, aCanvas.width, aCanvas.height);
+        
+        // Draw Growth Line (Green)
+        aCtx.beginPath();
+        aCtx.strokeStyle = '#4CAF50';
+        aCtx.lineWidth = 2;
+        history.forEach((data, i) => {
+            let x = (i / 200) * aCanvas.width;
+            let y = aCanvas.height - (data.g / 100 * aCanvas.height);
+            if (i === 0) aCtx.moveTo(x, y); else aCtx.lineTo(x, y);
+        });
+        aCtx.stroke();
+
+        // Draw ppb Line (Purple)
+        aCtx.beginPath();
+        aCtx.strokeStyle = '#a855f7';
+        aCtx.setLineDash([5, 3]);
+        history.forEach((data, i) => {
+            let x = (i / 200) * aCanvas.width;
+            let y = aCanvas.height - (Math.min(data.p, 100) / 100 * aCanvas.height);
+            if (i === 0) aCtx.moveTo(x, y); else aCtx.lineTo(x, y);
+        });
+        aCtx.stroke();
+        aCtx.setLineDash([]);
+    }
+
+    function drawMicro() {
+        mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
+        const zoom = parseFloat(zoomSlider.value);
+        const cx = mCanvas.width/2;
+        const cy = mCanvas.height/2;
+
+        if (zoom < 0.8) {
+            // View: Cell Mitosis
+            mCtx.strokeStyle = '#00BCD4';
+            for(let i=0; i<5; i++) {
+                mCtx.beginPath();
+                mCtx.moveTo(cx-100, cy);
+                let drift = isTreated ? 0 : Math.sin(time*0.1 + i)*20;
+                mCtx.lineTo(cx+100 + drift, cy-50+(i*25));
+                mCtx.stroke();
+            }
+        } else if (zoom < 1.6) {
+            // View: Microtubule Assembly
+            const spacing = 40;
+            for(let i=0; i<8; i++) {
+                mCtx.fillStyle = (i % 2 === 0) ? '#1e40af' : '#60a5fa';
+                let x = (cx-150) + (i*spacing);
+                if (isTreated && i > 4) mCtx.globalAlpha = 0.2;
+                mCtx.beginPath();
+                mCtx.arc(x, cy + Math.sin(time*0.1 + i)*5, 15, 0, Math.PI*2);
+                mCtx.fill();
+                mCtx.globalAlpha = 1;
+            }
+        } else {
+            // View: Molecular Docking
+            mCtx.fillStyle = '#1e40af'; // Beta tubulin
+            mCtx.beginPath(); mCtx.arc(cx, cy, 60, 0, Math.PI*2); mCtx.fill();
+            if (isTreated) {
+                mCtx.fillStyle = '#FF9800'; // Carbendazim
+                mCtx.fillRect(cx-20, cy-20, 40, 40);
+                mCtx.fillStyle = 'white';
+                mCtx.font = '12px Arial';
+                mCtx.fillText("CARBENDAZIM BOUND", cx-60, cy-70);
+            }
+        }
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        isTreated = !isTreated;
+        toggleBtn.classList.toggle('active');
+        toggleBtn.innerText = isTreated ? "FUNGICIDE ACTIVE" : "APPLY CARBENDAZIM (0.15%)";
+    });
+
+    // Init
+    mCanvas.width = mCanvas.offsetWidth; mCanvas.height = mCanvas.offsetHeight;
+    aCanvas.width = aCanvas.offsetWidth; aCanvas.height = aCanvas.offsetHeight;
+    updateSimulation();
+</script>
+
+</body>
+</html>
