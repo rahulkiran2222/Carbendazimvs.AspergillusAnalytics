@@ -111,7 +111,7 @@ That's it. No download, no installation, no login. Works on:
 
 ```bash
 # Download this repository
-git clone https://github.com/your-username/carbendazim-aspergillus-lab.git
+git clone https://github.com/rahulkiran2222/carbendazim-aspergillus-lab.git
 
 # Open the file — that's literally it
 # Double-click index.html
@@ -865,7 +865,7 @@ In your dissertation, cite the tool as:
   "[Your Name]. (2024). Carbendazim vs. Aspergillus flavus: An Interactive
    Biological Simulation [Web application]. Available at:
    https://carbendazim.pages.dev. Source code:
-   https://github.com/rk2222/carbendazim-aspergillus-lab"
+   https://github.com/rahulkiran2222/carbendazim-aspergillus-lab"
 ```
 
 ---
